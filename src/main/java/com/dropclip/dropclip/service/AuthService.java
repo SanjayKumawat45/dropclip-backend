@@ -2,9 +2,11 @@ package com.dropclip.dropclip.service;
 
 import com.dropclip.dropclip.dto.*;
 import com.dropclip.dropclip.entity.User;
+import com.dropclip.dropclip.exception.ApiException;
 import com.dropclip.dropclip.repository.UserRepository;
 import com.dropclip.dropclip.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -25,12 +27,12 @@ public class AuthService {
 
         // 1. Check if email already exists
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new RuntimeException("Email already in use");
+            throw new ApiException("Email already in use", HttpStatus.CONFLICT);
         }
 
         // 2. Check if username already exists
         if (userRepository.existsByUsername(request.getUsername())) {
-            throw new RuntimeException("Username already taken");
+            throw new ApiException("Username already taken", HttpStatus.CONFLICT);
         }
 
         // 3. Build and save the new user

@@ -2,8 +2,10 @@ package com.dropclip.dropclip.service;
 
 import com.dropclip.dropclip.dto.*;
 import com.dropclip.dropclip.entity.*;
+import com.dropclip.dropclip.exception.ApiException;
 import com.dropclip.dropclip.repository.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
@@ -19,6 +21,7 @@ public class ClipService {
     private final UserRepository userRepository;
     private final DropRepository dropRepository;
     private final S3Service s3Service;
+    private final LeaderboardService leaderboardService;
 
     // ── Get current logged in user ────────────────────────
 
@@ -28,7 +31,7 @@ public class ClipService {
                 .getAuthentication()
                 .getName();
         return userRepository.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ApiException("User not found", HttpStatus.NOT_FOUND));
     }
 
     // ── Generate presigned upload URL ─────────────────────
@@ -39,13 +42,15 @@ public class ClipService {
 
         // Get the active drop
         Drop drop = dropRepository.findByIsActiveTrue()
-                .orElseThrow(() -> new RuntimeException("No active drop right now"));
+                .orElseThrow(() -> new ApiException(
+                        "No active drop right now", HttpStatus.NOT_FOUND));
 
         // Check if user already submitted a clip for this drop
         if (clipRepository.existsByUserIdAndDropId(
                 user.getId(), drop.getId())) {
-            throw new RuntimeException(
-                    "You already submitted a clip for today's drop");
+            throw new ApiException(
+                    "You already submitted a clip for today's drop",
+                    HttpStatus.CONFLICT);
         }
 
         // Generate presigned URL
@@ -67,7 +72,8 @@ public class ClipService {
         User user = getCurrentUser();
 
         Drop drop = dropRepository.findByIsActiveTrue()
-                .orElseThrow(() -> new RuntimeException("No active drop"));
+                .orElseThrow(() -> new ApiException(
+                        "No active drop", HttpStatus.NOT_FOUND));
 
         // Save clip to database
         Clip clip = Clip.builder()
@@ -81,6 +87,12 @@ public class ClipService {
 
         clipRepository.save(clip);
 
+        // Add to Redis leaderboard
+        leaderboardService.addClipToLeaderboard(
+                drop.getId(),
+                clip.getId()
+        );
+
         // Update user's total clips count
         user.setTotalClips(user.getTotalClips() + 1);
         userRepository.save(user);
@@ -93,7 +105,8 @@ public class ClipService {
     public List<ClipResponseDTO> getClipsForActiveDrop() {
 
         Drop drop = dropRepository.findByIsActiveTrue()
-                .orElseThrow(() -> new RuntimeException("No active drop"));
+                .orElseThrow(() -> new ApiException(
+                        "No active drop", HttpStatus.NOT_FOUND));
 
         return clipRepository
                 .findClipsWithUserByDropId(drop.getId())
