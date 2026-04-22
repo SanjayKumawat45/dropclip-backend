@@ -15,6 +15,7 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
@@ -31,33 +32,45 @@ public class SecurityConfig {
             throws Exception {
 
         http
-                // 1. Disable CSRF
                 .csrf(AbstractHttpConfigurer::disable)
-
-                // 2. Define public vs protected routes
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            response.setStatus(403);
+                            response.setContentType("application/json");
+                            response.getWriter().write(
+                                    "{\"error\": \"" + authException.getMessage() + "\", " +
+                                            "\"path\": \"" + request.getRequestURI() + "\"}"
+                            );
+                        })
+                )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/api/auth/**",
-                                "/actuator/health"
+                                "/actuator/health",
+                                "/error"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
-
-                // 3. No sessions — we use JWT
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
-
-                // 4. Use our custom auth provider
                 .authenticationProvider(authenticationProvider())
-
-                // 5. Add JWT filter before Spring's default auth filter
                 .addFilterBefore(
                         jwtAuthFilter,
                         UsernamePasswordAuthenticationFilter.class
                 );
 
         return http.build();
+    }
+    @Bean
+    public AuthenticationEntryPoint authenticationEntryPoint() {
+        return (request, response, authException) -> {
+            response.setStatus(403);
+            response.setContentType("application/json");
+            response.getWriter().write(
+                    "{\"error\": \"" + authException.getMessage() + "\"}"
+            );
+        };
     }
 
     @Bean

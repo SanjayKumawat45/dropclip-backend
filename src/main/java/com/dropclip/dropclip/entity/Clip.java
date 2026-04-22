@@ -23,7 +23,7 @@ public class Clip extends BaseEntity {
     @Column(length = 200)
     private String title;
 
-    @Column(nullable = false, length = 500)
+    @Column(name = "s3_key", nullable = false, length = 500)
     private String s3Key;
 
     @Column(length = 500)
