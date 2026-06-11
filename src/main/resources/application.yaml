@@ -10,7 +10,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     show-sql: true
     properties:
       hibernate:
@@ -18,7 +18,7 @@ spring:
         format_sql: true
 
   flyway:
-    enabled: false
+    enabled: true
 
   data:
     redis:
@@ -43,3 +43,8 @@ aws:
   secret-key: test
   s3:
     bucket: dropclip-videos
+
+logging:
+  level:
+    org.hibernate.engine.jdbc.spi.SqlExceptionHelper: DEBUG
+    org.springframework.web: DEBUG
