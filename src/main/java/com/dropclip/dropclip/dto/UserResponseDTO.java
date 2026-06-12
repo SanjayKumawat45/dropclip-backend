@@ -1,10 +1,12 @@
 package com.dropclip.dropclip.dto;
 
+import com.dropclip.dropclip.entity.BadgeType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.List;
 import java.util.UUID;
 
 @Getter
@@ -21,4 +23,5 @@ public class UserResponseDTO {
     private String bio;
     private Integer streakCount;
     private Integer totalClips;
+    private List<BadgeType> badges;
 }

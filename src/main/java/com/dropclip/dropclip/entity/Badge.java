@@ -2,6 +2,7 @@ package com.dropclip.dropclip.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import com.dropclip.dropclip.entity.BadgeType;
 
 import java.time.LocalDateTime;
 
@@ -18,8 +19,9 @@ public class Badge extends BaseEntity {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
-    private String badgeType;
+    private BadgeType badgeType;
 
     @Column(name = "earned_at")
     private LocalDateTime earnedAt;

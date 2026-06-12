@@ -22,6 +22,8 @@ public class ClipService {
     private final DropRepository dropRepository;
     private final S3Service s3Service;
     private final LeaderboardService leaderboardService;
+    private final StreakService streakService;
+    private final BadgeService badgeService;
 
     // ── Get current logged in user ────────────────────────
 
@@ -75,6 +77,14 @@ public class ClipService {
                 .orElseThrow(() -> new ApiException(
                         "No active drop", HttpStatus.NOT_FOUND));
 
+        if (clipRepository.existsByUserIdAndDropId(user.getId(), drop.getId())) {
+            throw new ApiException(
+                    "You already submitted a clip for today's drop",
+                    HttpStatus.CONFLICT);
+        }
+
+        var streakResult = streakService.updateStreakOnClipSubmit(user, drop);
+
         // Save clip to database
         Clip clip = Clip.builder()
                 .user(user)
@@ -93,11 +103,13 @@ public class ClipService {
                 clip.getId()
         );
 
-        // Update user's total clips count
         user.setTotalClips(user.getTotalClips() + 1);
+
+        badgeService.evaluateBadges(user);
+
         userRepository.save(user);
 
-        return mapToClipResponse(clip);
+        return mapToClipResponse(clip, streakResult);
     }
 
     // ── Get all clips for active drop ─────────────────────
@@ -111,14 +123,14 @@ public class ClipService {
         return clipRepository
                 .findClipsWithUserByDropId(drop.getId())
                 .stream()
-                .map(this::mapToClipResponse)
+                .map(clip -> mapToClipResponse(clip, null))
                 .collect(Collectors.toList());
     }
 
     // ── Helper — map Clip entity to DTO ───────────────────
 
-    private ClipResponseDTO mapToClipResponse(Clip clip) {
-        return ClipResponseDTO.builder()
+    private ClipResponseDTO mapToClipResponse(Clip clip, StreakResponseDTO streak) {
+        ClipResponseDTO.ClipResponseDTOBuilder builder = ClipResponseDTO.builder()
                 .id(clip.getId())
                 .title(clip.getTitle())
                 .thumbnailUrl(clip.getThumbnailUrl())
@@ -127,7 +139,15 @@ public class ClipService {
                 .voteCount(clip.getVoteCount())
                 .username(clip.getUser().getUsername())
                 .displayName(clip.getUser().getDisplayName())
-                .createdAt(clip.getCreatedAt())
-                .build();
+                .createdAt(clip.getCreatedAt());
+
+        if (streak != null) {
+            builder
+                    .streakCount(streak.getStreakCount())
+                    .streakExtended(streak.getStreakExtended())
+                    .streakReset(streak.getStreakReset());
+        }
+
+        return builder.build();
     }
 }
