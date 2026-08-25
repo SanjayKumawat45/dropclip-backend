@@ -2,6 +2,7 @@ package com.dropclip.dropclip.service;
 
 import com.dropclip.dropclip.dto.StreakResponseDTO;
 import com.dropclip.dropclip.dto.UserResponseDTO;
+import com.dropclip.dropclip.dto.UserSearchResponseDTO;
 import com.dropclip.dropclip.entity.Badge;
 import com.dropclip.dropclip.entity.BadgeType;
 import com.dropclip.dropclip.entity.User;
@@ -23,24 +24,72 @@ public class UserService {
     private final StreakService streakService;
     private final BadgeRepository badgeRepository;
 
+    // =====================================================
+    // CURRENT USER
+    // =====================================================
+
     public User getCurrentUser() {
+
         String email = SecurityContextHolder
                 .getContext()
                 .getAuthentication()
                 .getName();
-        return userRepository.findByEmail(email)
-                .orElseThrow(() -> new ApiException("User not found", HttpStatus.NOT_FOUND));
+
+        return userRepository
+                .findByEmail(email)
+                .orElseThrow(() ->
+                        new ApiException(
+                                "User not found",
+                                HttpStatus.NOT_FOUND
+                        )
+                );
     }
+
+    // =====================================================
+    // MY PROFILE
+    // =====================================================
 
     public UserResponseDTO getCurrentUserProfile() {
         return mapToUserResponse(getCurrentUser());
     }
 
+    // =====================================================
+    // MY STREAK
+    // =====================================================
+
     public StreakResponseDTO getCurrentUserStreak() {
-        return streakService.getStreakStatus(getCurrentUser());
+        return streakService.getStreakStatus(
+                getCurrentUser()
+        );
     }
 
-    private UserResponseDTO mapToUserResponse(User user) {
+    // =====================================================
+    // PUBLIC USER PROFILE
+    // =====================================================
+
+    public UserResponseDTO getUserProfileByUsername(
+            String username
+    ) {
+
+        User user = userRepository
+                .findByUsername(username)
+                .orElseThrow(() ->
+                        new ApiException(
+                                "User not found",
+                                HttpStatus.NOT_FOUND
+                        )
+                );
+
+        return mapToUserResponse(user);
+    }
+
+    // =====================================================
+    // MAP USER -> RESPONSE DTO
+    // =====================================================
+
+    private UserResponseDTO mapToUserResponse(
+            User user
+    ) {
 
         List<BadgeType> badges = badgeRepository
                 .findByUserId(user.getId())
@@ -57,7 +106,38 @@ public class UserService {
                 .bio(user.getBio())
                 .streakCount(user.getStreakCount())
                 .totalClips(user.getTotalClips())
-                .badges(badges)      // <-- add this here
+                .badges(badges)
                 .build();
+    }
+
+    // =====================================================
+    // SEARCH USERS
+    // =====================================================
+
+    public List<UserSearchResponseDTO> searchUsers(
+            String query
+    ) {
+
+        if (query == null || query.trim().isEmpty()) {
+            return List.of();
+        }
+
+        String searchQuery = query.trim();
+
+        return userRepository
+                .findByUsernameContainingIgnoreCaseOrDisplayNameContainingIgnoreCase(
+                        searchQuery,
+                        searchQuery
+                )
+                .stream()
+                .map(user ->
+                        new UserSearchResponseDTO(
+                                user.getId(),
+                                user.getUsername(),
+                                user.getDisplayName(),
+                                user.getAvatarUrl()
+                        )
+                )
+                .toList();
     }
 }
