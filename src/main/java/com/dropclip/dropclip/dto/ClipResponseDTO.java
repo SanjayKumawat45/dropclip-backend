@@ -22,4 +22,7 @@ public class ClipResponseDTO {
     private String username;
     private String displayName;
     private LocalDateTime createdAt;
+    private Integer streakCount;
+    private Boolean streakExtended;
+    private Boolean streakReset;
 }

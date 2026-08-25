@@ -9,7 +9,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -22,6 +24,8 @@ public class ClipService {
     private final DropRepository dropRepository;
     private final S3Service s3Service;
     private final LeaderboardService leaderboardService;
+    private final StreakService streakService;
+    private final BadgeService badgeService;
 
     // ── Get current logged in user ────────────────────────
 
@@ -32,6 +36,45 @@ public class ClipService {
                 .getName();
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new ApiException("User not found", HttpStatus.NOT_FOUND));
+    }
+
+    // ── Get leaderboard for active drop ─────────────────────
+
+    public List<ClipResponseDTO> getLeaderboardForActiveDrop(int limit) {
+
+        Drop drop = dropRepository.findByIsActiveTrue()
+                .orElseThrow(() -> new ApiException(
+                        "No active drop",
+                        HttpStatus.NOT_FOUND
+                ));
+
+        // Get top clip IDs from Redis
+        List<UUID> topClipIds = leaderboardService
+                .getTopClips(drop.getId(), limit)
+                .stream()
+                .map(UUID::fromString)
+                .toList();
+
+        if (topClipIds.isEmpty()) {
+            return List.of();
+        }
+
+        // Get all active-drop clips
+        List<ClipResponseDTO> clips =
+                getClipsForActiveDrop();
+
+        // Put clips into a map for quick lookup
+        Map<UUID, ClipResponseDTO> clipMap = new HashMap<>();
+
+        for (ClipResponseDTO clip : clips) {
+            clipMap.put(clip.getId(), clip);
+        }
+
+        // Return clips in Redis leaderboard order
+        return topClipIds.stream()
+                .map(clipMap::get)
+                .filter(java.util.Objects::nonNull)
+                .toList();
     }
 
     // ── Generate presigned upload URL ─────────────────────
@@ -75,6 +118,14 @@ public class ClipService {
                 .orElseThrow(() -> new ApiException(
                         "No active drop", HttpStatus.NOT_FOUND));
 
+        if (clipRepository.existsByUserIdAndDropId(user.getId(), drop.getId())) {
+            throw new ApiException(
+                    "You already submitted a clip for today's drop",
+                    HttpStatus.CONFLICT);
+        }
+
+        var streakResult = streakService.updateStreakOnClipSubmit(user, drop);
+
         // Save clip to database
         Clip clip = Clip.builder()
                 .user(user)
@@ -93,11 +144,13 @@ public class ClipService {
                 clip.getId()
         );
 
-        // Update user's total clips count
         user.setTotalClips(user.getTotalClips() + 1);
+
+        badgeService.evaluateBadges(user);
+
         userRepository.save(user);
 
-        return mapToClipResponse(clip);
+        return mapToClipResponse(clip, streakResult);
     }
 
     // ── Get all clips for active drop ─────────────────────
@@ -111,23 +164,36 @@ public class ClipService {
         return clipRepository
                 .findClipsWithUserByDropId(drop.getId())
                 .stream()
-                .map(this::mapToClipResponse)
+                .map(clip -> mapToClipResponse(clip, null))
                 .collect(Collectors.toList());
     }
 
     // ── Helper — map Clip entity to DTO ───────────────────
 
-    private ClipResponseDTO mapToClipResponse(Clip clip) {
-        return ClipResponseDTO.builder()
-                .id(clip.getId())
-                .title(clip.getTitle())
-                .thumbnailUrl(clip.getThumbnailUrl())
-                .clipUrl(s3Service.getClipUrl(clip.getS3Key()))
-                .status(clip.getStatus())
-                .voteCount(clip.getVoteCount())
-                .username(clip.getUser().getUsername())
-                .displayName(clip.getUser().getDisplayName())
-                .createdAt(clip.getCreatedAt())
-                .build();
+    private ClipResponseDTO mapToClipResponse(Clip clip, StreakResponseDTO streak) {
+        ClipResponseDTO.ClipResponseDTOBuilder builder =
+                ClipResponseDTO.builder()
+                        .id(clip.getId())
+                        .title(clip.getTitle())
+                        .thumbnailUrl(clip.getThumbnailUrl())
+                        .clipUrl(
+                                s3Service.getClipUrl(
+                                        clip.getS3Key()
+                                )
+                        )
+                        .status(clip.getStatus())
+                        .voteCount(clip.getVoteCount())
+                        .username(clip.getUser().getUsername())
+                        .displayName(clip.getUser().getDisplayName())
+                        .createdAt(clip.getCreatedAt());
+
+        if (streak != null) {
+            builder
+                    .streakCount(streak.getStreakCount())
+                    .streakExtended(streak.getStreakExtended())
+                    .streakReset(streak.getStreakReset());
+        }
+
+        return builder.build();
     }
 }

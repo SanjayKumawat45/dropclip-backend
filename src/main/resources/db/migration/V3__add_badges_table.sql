@@ -1,0 +1,9 @@
+CREATE TABLE IF NOT EXISTS badges (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    badge_type VARCHAR(50) NOT NULL,
+    earned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT unique_user_badge UNIQUE (user_id, badge_type)
+);

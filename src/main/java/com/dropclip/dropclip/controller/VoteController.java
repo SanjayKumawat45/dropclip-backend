@@ -18,7 +18,7 @@ public class VoteController {
 
     @PostMapping("/clips/{clipId}/vote")
     public ResponseEntity<Void> vote(@PathVariable UUID clipId) {
-        voteService.vote(clipId);
+        voteService.toggleVote(clipId);
         return ResponseEntity.ok().build();
     }
 
