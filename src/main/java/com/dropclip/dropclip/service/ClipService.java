@@ -9,7 +9,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -34,6 +36,45 @@ public class ClipService {
                 .getName();
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new ApiException("User not found", HttpStatus.NOT_FOUND));
+    }
+
+    // ── Get leaderboard for active drop ─────────────────────
+
+    public List<ClipResponseDTO> getLeaderboardForActiveDrop(int limit) {
+
+        Drop drop = dropRepository.findByIsActiveTrue()
+                .orElseThrow(() -> new ApiException(
+                        "No active drop",
+                        HttpStatus.NOT_FOUND
+                ));
+
+        // Get top clip IDs from Redis
+        List<UUID> topClipIds = leaderboardService
+                .getTopClips(drop.getId(), limit)
+                .stream()
+                .map(UUID::fromString)
+                .toList();
+
+        if (topClipIds.isEmpty()) {
+            return List.of();
+        }
+
+        // Get all active-drop clips
+        List<ClipResponseDTO> clips =
+                getClipsForActiveDrop();
+
+        // Put clips into a map for quick lookup
+        Map<UUID, ClipResponseDTO> clipMap = new HashMap<>();
+
+        for (ClipResponseDTO clip : clips) {
+            clipMap.put(clip.getId(), clip);
+        }
+
+        // Return clips in Redis leaderboard order
+        return topClipIds.stream()
+                .map(clipMap::get)
+                .filter(java.util.Objects::nonNull)
+                .toList();
     }
 
     // ── Generate presigned upload URL ─────────────────────
