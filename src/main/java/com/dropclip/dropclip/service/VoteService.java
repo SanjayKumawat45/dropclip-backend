@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -40,6 +41,51 @@ public class VoteService {
     }
 
     // ── Vote on a clip ────────────────────────────────────
+
+
+    public void toggleVote(UUID clipId) {
+
+        User user = getCurrentUser();
+
+        Clip clip = clipRepository.findById(clipId)
+                .orElseThrow(() ->
+                        new ApiException(
+                                "Clip not found",
+                                HttpStatus.NOT_FOUND
+                        ));
+
+        Optional<Vote> existingVote =
+                voteRepository.findByUserIdAndClipId(
+                        user.getId(),
+                        clipId
+                );
+
+        if (existingVote.isPresent()) {
+
+            // Remove existing vote
+            voteRepository.delete(existingVote.get());
+
+            clip.setVoteCount(
+                    Math.max(0, clip.getVoteCount() - 1)
+            );
+
+        } else {
+
+            // Add new vote
+            Vote vote = Vote.builder()
+                    .user(user)
+                    .clip(clip)
+                    .build();
+
+            voteRepository.save(vote);
+
+            clip.setVoteCount(
+                    clip.getVoteCount() + 1
+            );
+        }
+
+        clipRepository.save(clip);
+    }
 
     @Transactional
     public void vote(UUID clipId) {

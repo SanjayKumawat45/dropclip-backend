@@ -37,13 +37,13 @@ jwt:
   refresh-expiration: 604800000
 
 aws:
-  region: us-east-1
-  endpoint: http://127.0.0.1:4566
-  access-key: test
-  secret-key: test
+  region: auto
+  endpoint: https://cec9b28327aa26ddf3a5de7598821f9d.r2.cloudflarestorage.com
+  access-key: ${R2_ACCESS_KEY_ID}
+  secret-key: ${R2_SECRET_ACCESS_KEY}
+
   s3:
     bucket: dropclip-videos
-
 logging:
   level:
     org.hibernate.engine.jdbc.spi.SqlExceptionHelper: DEBUG

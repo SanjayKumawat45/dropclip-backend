@@ -171,16 +171,21 @@ public class ClipService {
     // ── Helper — map Clip entity to DTO ───────────────────
 
     private ClipResponseDTO mapToClipResponse(Clip clip, StreakResponseDTO streak) {
-        ClipResponseDTO.ClipResponseDTOBuilder builder = ClipResponseDTO.builder()
-                .id(clip.getId())
-                .title(clip.getTitle())
-                .thumbnailUrl(clip.getThumbnailUrl())
-                .clipUrl(s3Service.getClipUrl(clip.getS3Key()))
-                .status(clip.getStatus())
-                .voteCount(clip.getVoteCount())
-                .username(clip.getUser().getUsername())
-                .displayName(clip.getUser().getDisplayName())
-                .createdAt(clip.getCreatedAt());
+        ClipResponseDTO.ClipResponseDTOBuilder builder =
+                ClipResponseDTO.builder()
+                        .id(clip.getId())
+                        .title(clip.getTitle())
+                        .thumbnailUrl(clip.getThumbnailUrl())
+                        .clipUrl(
+                                s3Service.getClipUrl(
+                                        clip.getS3Key()
+                                )
+                        )
+                        .status(clip.getStatus())
+                        .voteCount(clip.getVoteCount())
+                        .username(clip.getUser().getUsername())
+                        .displayName(clip.getUser().getDisplayName())
+                        .createdAt(clip.getCreatedAt());
 
         if (streak != null) {
             builder
