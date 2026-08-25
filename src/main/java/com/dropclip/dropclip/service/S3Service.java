@@ -26,7 +26,7 @@ public class S3Service {
     @Value("${aws.endpoint}")
     private String endpoint;
 
-    // Generate a presigned URL for uploading a video
+    // Generate a presigned URL for uploading a videos
     public String generatePresignedUploadUrl(String userId, String dropId) {
 
         // Create a unique key for this clip
