@@ -33,7 +33,7 @@ public class AwsConfig {
 
         S3Configuration s3Configuration =
                 S3Configuration.builder()
-                        .pathStyleAccessEnabled(false)
+                        .pathStyleAccessEnabled(true)
                         .chunkedEncodingEnabled(false)
                         .build();
 
@@ -57,7 +57,7 @@ public class AwsConfig {
 
         S3Configuration s3Configuration =
                 S3Configuration.builder()
-                        .pathStyleAccessEnabled(false)
+                        .pathStyleAccessEnabled(true)
                         .build();
 
         return S3Presigner.builder()
