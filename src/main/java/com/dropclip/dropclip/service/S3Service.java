@@ -54,7 +54,6 @@ public class S3Service {
                 PutObjectRequest.builder()
                         .bucket(bucketName)
                         .key(s3Key)
-                        .contentType("video/mp4")
                         .build();
 
         PutObjectPresignRequest presignRequest =
